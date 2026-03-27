@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <radialGradient id="h" cx="30%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Full-bleed for maskable icons -->
+  <rect x="0" y="0" width="512" height="512" rx="140" fill="url(#g)"/>
+  <circle cx="190" cy="180" r="160" fill="url(#h)"/>
+  <g opacity="0.9">
+    <circle cx="206" cy="224" r="60" fill="rgba(255,255,255,0.22)"/>
+    <circle cx="320" cy="268" r="60" fill="rgba(255,255,255,0.18)"/>
+    <circle cx="244" cy="350" r="60" fill="rgba(255,255,255,0.20)"/>
+  </g>
+</svg>

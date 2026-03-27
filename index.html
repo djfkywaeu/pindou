@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0b1020" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>拼豆 - 网页小游戏</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div class="brandText">
+            <div class="title">拼豆</div>
+            <div class="subtitle">像素拼豆画板</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btnUndo" class="btn" type="button" title="撤销 (Ctrl+Z)">撤销</button>
+          <button id="btnClear" class="btn btnDanger" type="button">清空</button>
+          <button id="btnExportPng" class="btn" type="button">导出 PNG</button>
+        </div>
+      </header>
+
+      <main class="main">
+        <aside class="panel" aria-label="工具面板">
+          <section class="card">
+            <div class="cardTitle">画板</div>
+            <div class="row">
+              <label class="label" for="selSize">尺寸</label>
+              <select id="selSize" class="select">
+                <option value="16">16 × 16</option>
+                <option value="24" selected>24 × 24</option>
+                <option value="32">32 × 32</option>
+                <option value="48">48 × 48</option>
+                <option value="64">64 × 64</option>
+              </select>
+            </div>
+            <div class="row">
+              <label class="label" for="rngZoom">缩放</label>
+              <input id="rngZoom" class="range" type="range" min="10" max="28" value="18" />
+              <div id="txtZoom" class="mono">18px</div>
+            </div>
+            <div class="row">
+              <label class="label" for="chkGrid">网格线</label>
+              <label class="switch">
+                <input id="chkGrid" type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="cardTitle">画笔</div>
+            <div class="row">
+              <button id="btnEraser" class="btn" type="button" aria-pressed="false">橡皮擦</button>
+              <label class="chip" title="自定义颜色">
+                <span>自定义</span>
+                <input id="inpColor" type="color" value="#ff3b30" />
+              </label>
+            </div>
+            <div class="row">
+              <div class="label">调色板</div>
+            </div>
+            <div id="palette" class="palette" role="listbox" aria-label="颜色列表"></div>
+            <div class="hint">
+              拖拽涂色；右键/长按也可擦除。<br />
+              快捷键：<span class="kbd">Ctrl</span>+<span class="kbd">Z</span> 撤销。
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="cardTitle">状态</div>
+            <div class="stats">
+              <div class="stat">
+                <div class="statKey">已用颜色</div>
+                <div id="statColors" class="statVal mono">0</div>
+              </div>
+              <div class="stat">
+                <div class="statKey">已填格子</div>
+                <div id="statFilled" class="statVal mono">0</div>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <section class="stage" aria-label="画布区域">
+          <div class="canvasWrap">
+            <canvas id="board" width="720" height="720"></canvas>
+          </div>
+          <div class="footerTip">
+            提示：导出 PNG 会按“拼豆颗粒”风格输出（圆点+高光）。
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="dlgExport" class="dialog">
+      <form method="dialog" class="dialogBody">
+        <div class="dialogTitle">导出</div>
+        <div id="dlgContent" class="dialogContent"></div>
+        <div class="dialogActions">
+          <button class="btn" value="close">关闭</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
