@@ -6,6 +6,7 @@
     palette: $("#palette"),
     btnUndo: $("#btnUndo"),
     btnClear: $("#btnClear"),
+    fileImportImage: $("#fileImportImage"),
     btnExportPng: $("#btnExportPng"),
     selSize: $("#selSize"),
     rngZoom: $("#rngZoom"),
@@ -39,6 +40,16 @@
     "#64d2ff",
     "#ff9f0a",
   ];
+
+  const PALETTE_RGB = DEFAULT_PALETTE.map((hex) => {
+    const h = String(hex).replace("#", "").trim();
+    const isShort = h.length === 3;
+    const full = isShort ? h.split("").map((ch) => ch + ch).join("") : h;
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    return { hex, r, g, b };
+  });
 
   const state = {
     n: Number(els.selSize.value),
@@ -388,6 +399,116 @@
     });
   }
 
+  function findNearestPaletteHex(r, g, b) {
+    let best = PALETTE_RGB[0];
+    let bestD = Infinity;
+    for (const p of PALETTE_RGB) {
+      const dr = r - p.r;
+      const dg = g - p.g;
+      const db = b - p.b;
+      const d = dr * dr + dg * dg + db * db;
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return best.hex;
+  }
+
+  async function imageFileToMosaic(file, blockPx) {
+    if (!file || !file.type || !file.type.startsWith("image/")) {
+      throw new Error("请选择常见图片格式（jpg/png/webp 等）");
+    }
+    const bp = Number(blockPx);
+    if (![5, 10, 15, 20, 25].includes(bp)) throw new Error("小方块密度不合法");
+
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = url;
+      await img.decode();
+
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      if (!iw || !ih) throw new Error("图片尺寸无效");
+
+      // Number of blocks is derived from original size & chosen block pixel size.
+      // Keeps aspect ratio identical to the uploaded image.
+      const blocksW = Math.max(1, Math.round(iw / bp));
+      const blocksH = Math.max(1, Math.round(ih / bp));
+
+      // Sample to a small bitmap where each pixel == one block color.
+      const sc = document.createElement("canvas");
+      sc.width = blocksW;
+      sc.height = blocksH;
+      const sctx = sc.getContext("2d", { willReadFrequently: true });
+      if (!sctx) throw new Error("无法处理图片（Canvas 不可用）");
+      sctx.imageSmoothingEnabled = true;
+      sctx.imageSmoothingQuality = "high";
+      sctx.clearRect(0, 0, blocksW, blocksH);
+      sctx.drawImage(img, 0, 0, iw, ih, 0, 0, blocksW, blocksH);
+
+      const { data } = sctx.getImageData(0, 0, blocksW, blocksH);
+      const cells = Array(blocksW * blocksH).fill(null);
+      for (let y = 0; y < blocksH; y++) {
+        for (let x = 0; x < blocksW; x++) {
+          const off = (y * blocksW + x) * 4;
+          const a = data[off + 3];
+          if (a < 18) continue;
+          const r = data[off];
+          const g = data[off + 1];
+          const b = data[off + 2];
+          cells[y * blocksW + x] = findNearestPaletteHex(r, g, b);
+        }
+      }
+
+      // Render preview/export canvas as seamless squares (no borders, no circles).
+      const oc = document.createElement("canvas");
+      oc.width = blocksW * bp;
+      oc.height = blocksH * bp;
+      const octx = oc.getContext("2d");
+      if (!octx) throw new Error("无法渲染预览（Canvas 不可用）");
+      octx.imageSmoothingEnabled = false;
+      for (let y = 0; y < blocksH; y++) {
+        for (let x = 0; x < blocksW; x++) {
+          const c = cells[y * blocksW + x];
+          if (!c) continue;
+          octx.fillStyle = c;
+          octx.fillRect(x * bp, y * bp, bp, bp);
+        }
+      }
+
+      return { canvas: oc, cells, blocksW, blocksH, blockPx: bp };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function mosaicToBoardCells(mosaic) {
+    const { cells, blocksW, blocksH } = mosaic;
+    const n = state.n;
+    const out = Array(n * n).fill(null);
+
+    const scale = Math.min(n / blocksW, n / blocksH);
+    const dw = Math.max(1, Math.round(blocksW * scale));
+    const dh = Math.max(1, Math.round(blocksH * scale));
+    const dx = Math.floor((n - dw) / 2);
+    const dy = Math.floor((n - dh) / 2);
+
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const lx = x - dx;
+        const ly = y - dy;
+        if (lx < 0 || ly < 0 || lx >= dw || ly >= dh) continue;
+        const sx = clamp(Math.floor(lx / scale), 0, blocksW - 1);
+        const sy = clamp(Math.floor(ly / scale), 0, blocksH - 1);
+        out[y * n + x] = cells[sy * blocksW + sx];
+      }
+    }
+    return out;
+  }
+
   // events
   els.btnUndo.addEventListener("click", () => {
     const prev = state.undo.pop();
@@ -421,6 +542,127 @@
     img.addEventListener("load", () => {
       setTimeout(() => URL.revokeObjectURL(img.src), 5000);
     });
+  });
+
+  els.fileImportImage.addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+
+    try {
+      const wrap = document.createElement("div");
+      wrap.style.display = "grid";
+      wrap.style.gap = "10px";
+
+      const formRow = document.createElement("div");
+      formRow.style.display = "flex";
+      formRow.style.gap = "10px";
+      formRow.style.flexWrap = "wrap";
+      formRow.style.alignItems = "center";
+      formRow.style.justifyContent = "space-between";
+
+      const label = document.createElement("div");
+      label.textContent = "小方块密度";
+      label.style.color = "rgba(255,255,255,0.75)";
+      label.style.fontSize = "12px";
+
+      const sel = document.createElement("select");
+      sel.className = "select";
+      sel.style.maxWidth = "220px";
+      sel.innerHTML = `
+        <option value="5">5 × 5 像素（更密）</option>
+        <option value="10" selected>10 × 10 像素</option>
+        <option value="15">15 × 15 像素</option>
+        <option value="20">20 × 20 像素</option>
+        <option value="25">25 × 25 像素（更粗）</option>
+      `;
+
+      formRow.appendChild(label);
+      formRow.appendChild(sel);
+      wrap.appendChild(formRow);
+
+      const previewHost = document.createElement("div");
+      previewHost.style.display = "grid";
+      previewHost.style.placeItems = "start center";
+      previewHost.style.gap = "10px";
+      wrap.appendChild(previewHost);
+
+      const btnRow = document.createElement("div");
+      btnRow.style.display = "flex";
+      btnRow.style.gap = "10px";
+      btnRow.style.flexWrap = "wrap";
+      btnRow.style.justifyContent = "flex-end";
+
+      const btnGen = document.createElement("button");
+      btnGen.type = "button";
+      btnGen.className = "btn";
+      btnGen.textContent = "生成图纸";
+
+      const btnApply = document.createElement("button");
+      btnApply.type = "button";
+      btnApply.className = "btn";
+      btnApply.textContent = "应用到画板（保持比例）";
+      btnApply.disabled = true;
+
+      const btnExport = document.createElement("button");
+      btnExport.type = "button";
+      btnExport.className = "btn";
+      btnExport.textContent = "导出图纸 PNG";
+      btnExport.disabled = true;
+
+      btnRow.appendChild(btnGen);
+      btnRow.appendChild(btnApply);
+      btnRow.appendChild(btnExport);
+      wrap.appendChild(btnRow);
+
+      let mosaic = null;
+
+      const renderPreview = (canvas) => {
+        previewHost.innerHTML = "";
+        canvas.style.width = "100%";
+        canvas.style.maxWidth = "520px";
+        canvas.style.borderRadius = "12px";
+        canvas.style.border = "1px solid rgba(255,255,255,0.12)";
+        canvas.style.background = "rgba(0,0,0,0.15)";
+        canvas.style.imageRendering = "pixelated";
+        previewHost.appendChild(canvas);
+      };
+
+      const applyToBoard = async () => {
+        if (!mosaic) return;
+        pushUndo();
+        state.cells = mosaicToBoardCells(mosaic);
+        drawAll();
+        scheduleSave();
+        vibrateTick();
+      };
+
+      btnGen.addEventListener("click", async () => {
+        btnGen.disabled = true;
+        btnGen.textContent = "生成中…";
+        try {
+          mosaic = await imageFileToMosaic(f, Number(sel.value));
+          renderPreview(mosaic.canvas);
+          btnApply.disabled = false;
+          btnExport.disabled = false;
+        } finally {
+          btnGen.disabled = false;
+          btnGen.textContent = "重新生成";
+        }
+      });
+
+      btnApply.addEventListener("click", applyToBoard);
+      btnExport.addEventListener("click", async () => {
+        if (!mosaic) return;
+        const blob = await new Promise((resolve) => mosaic.canvas.toBlob((b) => resolve(b), "image/png"));
+        if (!blob) return;
+        downloadBlob(`pindou_sheet_${mosaic.blocksW}x${mosaic.blocksH}_${mosaic.blockPx}px.png`, blob);
+      });
+
+      openDialog(wrap);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "生成图纸失败");
+    }
   });
 
   els.selSize.addEventListener("change", () => {
