@@ -284,3 +284,97 @@ canvas#board{
   .main{grid-template-columns: 1fr; }
   .actions{justify-content:flex-end}
 }
+
+@media (max-width: 760px){
+  .topbar{
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(11,16,32,.86), rgba(11,16,32,.55));
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    flex-wrap: wrap;
+  }
+  .brand{
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .actions{
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .main{
+    padding: 10px 10px 12px;
+    gap: 10px;
+  }
+  .panel{order:2}
+  .stage{order:1}
+  .card, .stage{
+    border-radius: 14px;
+    padding: 10px;
+  }
+  .btn{
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .chip{
+    min-height: 42px;
+  }
+  .row .label{
+    width: 56px;
+    font-size: 11px;
+  }
+  .select{
+    min-height: 42px;
+    font-size: 14px;
+  }
+  .stage{
+    min-height: min(62vh, 560px);
+  }
+  .canvasWrap{
+    min-height: 45vh;
+  }
+  .dialog{
+    width: min(96vw, 700px);
+    margin: auto;
+  }
+  .dialogBody{
+    min-width: 0;
+    width: 100%;
+    padding: 10px;
+  }
+  .dialogContent{
+    max-height: 68vh;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 460px){
+  .brandText .title{
+    font-size: 16px;
+  }
+  .brandText .subtitle{
+    font-size: 11px;
+  }
+  .actions{
+    justify-content: stretch;
+  }
+  .actions .btn,
+  .actions .fileBtn{
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    text-align: center;
+  }
+  .palette{
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .stats{
+    grid-template-columns: 1fr;
+  }
+  .footerTip{
+    font-size: 11px;
+  }
+}
