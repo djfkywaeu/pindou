@@ -742,7 +742,41 @@
     // PWA offline support (Android/iOS; iOS supports SW in modern versions).
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
+        navigator.serviceWorker
+          .register("./sw.js")
+          .then((reg) => {
+            const forceActivate = (r) => {
+              if (r.waiting) {
+                r.waiting.postMessage({ type: "SKIP_WAITING" });
+              }
+            };
+
+            // Always check for a newer version on each visit.
+            reg.update().catch(() => {});
+            forceActivate(reg);
+
+            reg.addEventListener("updatefound", () => {
+              const installing = reg.installing;
+              if (!installing) return;
+              installing.addEventListener("statechange", () => {
+                if (installing.state === "installed") {
+                  // If we already have a controller, then an update is ready: activate immediately.
+                  if (navigator.serviceWorker.controller) {
+                    forceActivate(reg);
+                  }
+                }
+              });
+            });
+
+            // If an updated SW takes control, reload so user runs the new version.
+            let reloaded = false;
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              if (reloaded) return;
+              reloaded = true;
+              window.location.reload();
+            });
+          })
+          .catch(() => {});
       });
     }
 

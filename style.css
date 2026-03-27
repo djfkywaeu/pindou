@@ -309,8 +309,8 @@ canvas#board{
     padding: 10px 10px 12px;
     gap: 10px;
   }
-  .panel{order:2}
-  .stage{order:1}
+  .panel{order:1}
+  .stage{order:2}
   .card, .stage{
     border-radius: 14px;
     padding: 10px;
